@@ -1,0 +1,70 @@
+version: "3.9"
+services:
+#  web:
+#    build: .
+#    command: python manage.py runserver 0.0.0.0:8000
+#    volumes:
+#      - .:/app
+#    ports:
+#      - "8000:8000"
+#    environment:
+#      # Переменные окружения для подключения к БД из .env
+#      - PGHOST=database
+#      - PGUSER=${PGUSER}
+#      - PGPASSWORD=${PGPASSWORD}
+#      - PGDATABASE=${PGDATABASE}
+#      - DJANGO_SETTINGS_MODULE=youth_portal.settings
+#      - SECRET_KEY=${SECRET_KEY}
+#      - DEBUG=${DEBUG}
+#      - ALLOWED_HOSTS=${ALLOWED_HOSTS}
+#      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+#    depends_on:
+#      - database
+#      - redis
+
+  database:
+    image: postgres:15-alpine
+    volumes:
+      - psg_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: ${PGDATABASE}
+      POSTGRES_USER: ${PGUSER}
+      POSTGRES_PASSWORD: ${PGPASSWORD}
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:latest
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  worker:
+    build: .
+    command: celery -A youth_portal worker -l INFO
+    volumes:
+      - .:/app
+    environment:
+      - PGHOST=database
+      - PGUSER=${PGUSER}
+      - PGPASSWORD=${PGPASSWORD}
+      - PGDATABASE=${PGDATABASE}
+      - DJANGO_SETTINGS_MODULE=youth_portal.settings
+      - SECRET_KEY=${SECRET_KEY}
+      - DEBUG=${DEBUG}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      - redis
+      - database
+
+  adminer:
+    image: adminer
+    ports:
+      - "8080:8080"
+
+volumes:
+  psg_data:
+  redis_data:

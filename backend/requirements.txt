@@ -1,0 +1,10 @@
+django
+psycopg[binary]
+celery
+redis
+requests
+python-dotenv
+djangorestframework
+django-filter
+drf-spectacular
+django-cors-headers

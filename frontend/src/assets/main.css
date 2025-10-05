@@ -1,0 +1,81 @@
+@import "tailwindcss";
+
+
+body {
+    padding: 0;
+    margin: 0;
+}
+
+#app {
+    padding: 0;
+    margin: 0;
+}
+
+*::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+}
+
+html {
+    scrollbar-width: none;
+}
+
+
+:root {
+    --tg-bg-color: #ffffff;
+    --tg-text-color: #111827;
+    --tg-hint-color: #6b7280;
+    --tg-link-color: #2481cc;
+    --tg-button-color: #2481cc;
+    --tg-button-text-color: #ffffff;
+    --tg-secondary-bg-color: #f3f4f6;
+    --tg-border-color: rgba(17, 24, 39, 0.12);
+}
+
+.dark {
+    --tg-border-color: rgba(243, 244, 246, 0.18);
+}
+
+/* Telegram theme helpers */
+.tg-bg {
+    background-color: var(--tg-bg-color);
+}
+
+.tg-text {
+    color: var(--tg-text-color);
+}
+
+.tg-hint {
+    color: var(--tg-hint-color);
+}
+
+.tg-link {
+    color: var(--tg-link-color);
+}
+
+.tg-secondary-bg {
+    background-color: var(--tg-secondary-bg-color);
+}
+
+.tg-btn {
+    background-color: var(--tg-button-color);
+    color: var(--tg-button-text-color);
+}
+
+.tg-btn-invert {
+    background-color: var(--tg-button-text-color);
+    color: var(--tg-button-color);
+}
+
+.tg-btn-invert:not(:disabled):hover {
+    opacity: 0.9;
+}
+
+
+.tg-btn:not(:disabled):hover {
+    opacity: 0.9;
+}
+
+.tg-border {
+    border-color: var(--tg-border-color)
+}
