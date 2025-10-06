@@ -2,6 +2,9 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.contrib.postgres.fields import DateTimeRangeField
+from django.contrib.postgres.constraints import ExclusionConstraint
+from django.contrib.postgres.fields import RangeOperators
+from django.db.models import Q, F
 
 from apps.centers.models import YouthCenter
 
@@ -77,17 +80,16 @@ class Booking(models.Model):
                               default=Status.PENDING)
 
     applicant = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="bookings"
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="bookings"
     )
+    # Новый идентификатор заявителя из Telegram (stateless)
+    applicant_telegram_id = models.BigIntegerField(null=True, blank=True, db_index=True)
 
     applicant_name = models.CharField(max_length=255)
     applicant_phone = models.CharField(max_length=50)
-    applicant_telegram_username = models.CharField(max_length=255,
-                                                   blank=True)
+    applicant_telegram_username = models.CharField(max_length=255, blank=True)
+
     comment = models.TextField(blank=True)
 
     # При отклонении — обязательная причина
@@ -100,6 +102,17 @@ class Booking(models.Model):
         verbose_name = "Бронирование"
         verbose_name_plural = "Бронирования"
         ordering = ["-created_at"]
+        constraints = [
+            ExclusionConstraint(
+                name="booking_no_overlap_if_approved",
+                expressions=[
+                    (F('room'), RangeOperators.EQUAL),
+                    ('time_slot', RangeOperators.OVERLAPS),
+                ],
+                condition=Q(status="APPROVED"),
+                index_type='GIST',
+            ),
+        ]
 
     def __str__(self):
         return f"{self.room} | {self.status} | {self.start_at} - {self.end_at}"

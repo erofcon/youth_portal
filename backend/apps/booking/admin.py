@@ -15,9 +15,9 @@ class OwnerRestrictedAdminMixin:
         qs = super().get_queryset(request)
         if request.user.is_superuser:
             return qs
-        if self.model is Room:
+        if self.model == Room:
             return qs.filter(responsible=request.user)
-        if self.model is Booking:
+        if self.model == Booking:
             return qs.filter(room__responsible=request.user)
         return qs.none()
 

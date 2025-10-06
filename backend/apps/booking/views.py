@@ -7,6 +7,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from .models import Room, RoomTag, Booking, Status
 from .serializers import RoomSerializer, RoomTagSerializer, BookingSerializer
 from rest_framework.permissions import IsAuthenticated
+from django.db.models import Q
 
 
 class RoomTagViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
@@ -53,25 +54,27 @@ class RoomViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin,
         return Response({"date": date, "busy_slots": busy})
 
 
-class BookingViewSet(mixins.CreateModelMixin, mixins.RetrieveModelMixin,
-                     viewsets.GenericViewSet):
+class BookingViewSet(mixins.CreateModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
     queryset = Booking.objects.select_related("room", "room__center")
     serializer_class = BookingSerializer
 
-    @action(
-        detail=False,
-        methods=['get'],
-        permission_classes=[IsAuthenticated]
-        # Это действие ВСЕГДА требует аутентификации
-    )
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
     def my(self, request):
         """
-        Возвращает список бронирований текущего пользователя.
-        GET /api/v1/bookings/my/
+        Если пользователь stateless (есть telegram_id) — ищем по applicant_telegram_id.
+        Если пользователь реальный Django user — ищем по applicant.
         """
+        u = request.user
+        filters = Q()
+        if getattr(u, 'is_authenticated', False):
+            if hasattr(u, 'telegram_id'):
+                filters |= Q(applicant_telegram_id=u.telegram_id)
+            if getattr(u, 'pk', None):
+                filters |= Q(applicant=u)
+        if not filters:
+            return Response([], status=200)
 
-        user_bookings = Booking.objects.filter(applicant=request.user).order_by(
-            '-created_at')
+        user_bookings = Booking.objects.filter(filters).order_by('-created_at')
 
         page = self.paginate_queryset(user_bookings)
         if page is not None:

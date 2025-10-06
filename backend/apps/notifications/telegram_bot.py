@@ -9,9 +9,9 @@ def send_telegram_message(chat_id: str, text: str) -> bool:
     """
     Отправляет сообщение в Telegram чат.
     """
-    token = settings.TELEGRAM_BOT_TOKEN
+    token = settings.TELEGRAM_NOTIFY_BOT_TOKEN or settings.TELEGRAM_BOT_TOKEN
     if not token:
-        logger.error("TELEGRAM_BOT_TOKEN не установлен в настройках.")
+        logger.error("TELEGRAM_NOTIFY_BOT_TOKEN/TELEGRAM_BOT_TOKEN не установлен в настройках.")
         return False
 
     url = f"https://api.telegram.org/bot{token}/sendMessage"
