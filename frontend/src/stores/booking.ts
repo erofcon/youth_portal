@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import apiClient from '@/api'
-import type { AvailabilityResponse, BookingPayload, Room } from '@/types'
+import type { AvailabilityResponse, BookingPayload, Room, Paginated } from '@/types'
 
 export const useBookingStore = defineStore('booking', () => {
   const rooms = ref<Room[]>([])
@@ -12,7 +12,7 @@ export const useBookingStore = defineStore('booking', () => {
     isLoading.value = true
     error.value = null
     try {
-      const result = await apiClient<Room[]>('/rooms/')
+      const result = await apiClient<Paginated<Room>>('/rooms/')
       rooms.value = result.results
     } catch (e: any) {
       error.value = e.message || 'Не удалось загрузить список помещений.'
@@ -22,17 +22,15 @@ export const useBookingStore = defineStore('booking', () => {
   }
 
   async function fetchAvailability(roomId: number, date: Date): Promise<AvailabilityResponse> {
-    const dateStr = date.toISOString().split('T')[0] // 'YYYY-MM-DD'
+    const dateStr = date.toISOString().split('T')[0]
     return await apiClient<AvailabilityResponse>(`/rooms/${roomId}/availability/?date=${dateStr}`)
   }
 
   async function createBooking(payload: BookingPayload) {
-    payload.start_datetime = '2025-10-05T20:34:40.310Z'
-    payload.end_datetime = '2025-10-06T20:34:40.310Z'
-
+    // ВАЖНО: используем реальные даты из payload, ничего не перетираем
     return await apiClient('/bookings/', {
       method: 'POST',
-      body: JSON.stringify(payload),
+      body: JSON.stringify(payload)
     })
   }
 
@@ -42,6 +40,6 @@ export const useBookingStore = defineStore('booking', () => {
     error,
     fetchRooms,
     fetchAvailability,
-    createBooking,
+    createBooking
   }
 })

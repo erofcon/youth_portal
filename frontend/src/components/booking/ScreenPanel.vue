@@ -8,10 +8,16 @@ type Props = {
 }
 const props = withDefaults(defineProps<Props>(), {
   closeOnBackdrop: false,
-  closeOnEsc: false,
+  closeOnEsc: false
 })
 
+const emit = defineEmits<{ (e: 'update:modelValue', v: boolean): void }>()
+
 const isOpen = computed(() => props.modelValue)
+
+function close() {
+  emit('update:modelValue', false)
+}
 
 function lockScroll(lock: boolean) {
   const el = document.documentElement
@@ -64,6 +70,15 @@ function onTouchMove(e: TouchEvent) {
 onMounted(() => {
   root.value?.addEventListener('touchstart', onTouchStart, { passive: false })
   root.value?.addEventListener('touchmove', onTouchMove, { passive: false })
+
+  // Закрытие по ESC (если включено)
+  if (props.closeOnEsc) {
+    const escHandler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen.value) close()
+    }
+    window.addEventListener('keydown', escHandler)
+    onBeforeUnmount(() => window.removeEventListener('keydown', escHandler))
+  }
 })
 onBeforeUnmount(() => {
   lockScroll(false)
@@ -79,10 +94,7 @@ onBeforeUnmount(() => {
       <div class="absolute inset-0 flex">
         <transition name="slide-in">
           <div class="flex flex-col h-full w-full p-0 m-0" v-if="isOpen">
-<!--            <div class="min-h-screen max-w-lg mx-auto">-->
-              <slot />
-<!--            </div>-->
-
+            <slot />
           </div>
         </transition>
       </div>
@@ -91,6 +103,7 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+/* без изменений */
 .fade-enter-active,
 .fade-leave-active {
   transition: opacity 0.2s ease;

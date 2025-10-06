@@ -29,8 +29,8 @@ export interface Room {
 }
 
 export interface BusySlot {
-  start: string // ISO 8601 string, e.g., "2025-10-26T10:00:00Z"
-  end: string // ISO 8601 string
+  start: string
+  end: string
 }
 
 export interface AvailabilityResponse {
@@ -38,9 +38,18 @@ export interface AvailabilityResponse {
   busy_slots: BusySlot[]
 }
 
+export interface Paginated<T> {
+  count: number
+  next: string | null
+  previous: string | null
+  results: T[]
+}
+
 export interface BookingPayload {
   room_id: number
-  start_datetime: string // ISO 8601 string
-  end_datetime: string // ISO 8601 string
+  start_datetime: string
+  end_datetime: string
   comment?: string
+  applicant_phone?: string
+  applicant_telegram_username?: string
 }

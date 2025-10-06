@@ -1,20 +1,25 @@
-<!-- components/BookingFlow.vue -->
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import DateStep from '@/components/booking/DateStep.vue'
 import TimeStep from '@/components/booking/TimeStep.vue'
 import type { BusySlot, Room } from '@/types'
 import { useBookingStore } from '@/stores/booking.ts'
+import { useTelegramTheme } from '@/composables/useTelegramTheme'
 
 const props = defineProps<{ room: Room; busy?: BusySlot[] }>()
 const emit = defineEmits<{ (e: 'close'): void; (e: 'success', payload: any): void }>()
 
 const bookingStore = useBookingStore()
+const { webApp, unsafeUser } = useTelegramTheme()
 
 const step = ref<0 | 1 | 2>(0)
 const chosenDate = ref<Date | null>(new Date())
 const startAt = ref<Date | null>(null)
 const endAt = ref<Date | null>(null)
+
+// Новые поля формы (опционально)
+const contactPhone = ref<string>('')
+const comment = ref<string>('')
 
 const internalBusy = ref<BusySlot[]>(props.busy || [])
 const isBusyLoading = ref(false)
@@ -42,8 +47,7 @@ const workingHours = { from: '09:00', to: '18:00' }
 
 // utils
 const toStartOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0)
-const toEndOfDay = (d: Date) =>
-  new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999)
+const toEndOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999)
 const parseISO = (s: string) => new Date(s)
 
 function hm(str: string) {
@@ -82,7 +86,7 @@ const dayBusy = computed(() => {
   if (!chosenDate.value) return []
   const s = toStartOfDay(chosenDate.value),
     e = toEndOfDay(chosenDate.value)
-  // Используем internalBusy, который мы загружаем из API
+
   return internalBusy.value
     .map((b) => ({ start: parseISO(b.start), end: parseISO(b.end) }))
     .filter((x) => x.end > s && x.start < e)
@@ -96,8 +100,6 @@ const isDayFull = computed(() => {
   return dayBusy.value.some((x) => x.start <= s && x.end >= e)
 })
 
-// Есть ли хоть один доступный 1‑часовой слот в выбранный день,
-// начиная не раньше max(работа с, now+1h) для сегодня
 const hasFreeForDay = computed(() => {
   if (!chosenDate.value) return false
   const d = chosenDate.value
@@ -152,11 +154,7 @@ function back() {
 }
 
 const swipeEl = ref<HTMLElement | null>(null)
-let startX = 0,
-  startY = 0,
-  dx = 0,
-  dy = 0,
-  swiping = false
+let startX = 0, startY = 0, dx = 0, dy = 0, swiping = false
 
 function onTouchStart(e: TouchEvent) {
   const t = e.touches[0]
@@ -198,7 +196,8 @@ onMounted(() => {
     onBeforeUnmount(() => {
       try {
         tg.BackButton.offClick(handler)
-      } catch {}
+      } catch {
+      }
       tg.BackButton.hide()
     })
   }
@@ -218,14 +217,21 @@ async function confirm() {
   loading.value = true
   error.value = null
   try {
-    const payload = {
+    const payload: any = {
       room_id: props.room.id,
       start_datetime: startAt.value.toISOString(),
-      end_datetime: endAt.value.toISOString(),
-      // Можно добавить поле для комментария
+      end_datetime: endAt.value.toISOString()
     }
-    const result = await bookingStore.createBooking(payload)
 
+    // Доп. поля — только если заполнены
+    if (contactPhone.value.trim()) payload.applicant_phone = contactPhone.value.trim()
+    if (comment.value.trim()) payload.comment = comment.value.trim()
+
+    // Если известен username из TG — добавим
+    const uname = unsafeUser.value?.username
+    if (uname) payload.applicant_telegram_username = uname
+
+    const result = await bookingStore.createBooking(payload)
     emit('success', result)
     emit('close')
   } catch (e: any) {
@@ -237,10 +243,7 @@ async function confirm() {
 </script>
 
 <template>
-  <div
-    class="flex flex-col p-0 m-0 h-full max-w-lg mx-auto w-full tg-bg tg-text px-4"
-    ref="swipeEl"
-  >
+  <div class="flex flex-col p-0 m-0 h-full max-w-lg mx-auto w-full tg-bg tg-text px-4" ref="swipeEl">
     <div class="sticky top-0 z-20 tg-bg border-b tg-border mt-4">
       <div class="px-4 pt-2 pb-3 flex items-center justify-between">
         <div class="tg-hint">{{ room.name }}</div>
@@ -249,30 +252,33 @@ async function confirm() {
     </div>
 
     <div class="relative flex-1 overflow-hidden">
-      <div
-        class="absolute inset-0 flex transition-transform duration-200"
-        :style="{ transform: `translateX(-${step * 100}%)` }"
-      >
+      <div class="absolute inset-0 flex transition-transform duration-200"
+           :style="{ transform: `translateX(-${step * 100}%)` }">
         <!-- Step 1 -->
         <div class="min-w-full overflow-y-auto">
-          <DateStep v-model="chosenDate" :min-date="now()" :busy="busy" />
+          <!-- Важно: передаём актуальные busy -->
+          <DateStep v-model="chosenDate" :min-date="now()" :busy="internalBusy" />
         </div>
+
         <!-- Step 2 -->
         <div class="min-w-full overflow-y-auto">
           <TimeStep
             v-if="chosenDate"
             :date="chosenDate"
-            :busy="busy"
+            :busy="internalBusy"
             :start="startAt"
             :end="endAt"
             @update:start="startAt = $event"
             @update:end="endAt = $event"
           />
         </div>
+
         <!-- Step 3 -->
         <div class="min-w-full overflow-y-auto">
           <div class="p-4">
             <h3 class="text-lg font-semibold tg-text">Подтверждение</h3>
+
+            <!-- Резюме -->
             <div class="mt-3 rounded-lg border tg-border p-3 tg-secondary-bg">
               <div class="grid grid-cols-2 gap-3">
                 <div>
@@ -288,33 +294,52 @@ async function confirm() {
                 <div>
                   <div class="text-sm tg-hint">Начало</div>
                   <div class="tg-text font-medium">
-                    {{
-                      startAt?.toLocaleTimeString('ru-RU', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })
-                    }}
+                    {{ startAt?.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) }}
                   </div>
                 </div>
                 <div>
-                  <div class="text-sm tg-hинt">Окончание</div>
+                  <div class="text-sm tg-hint">Окончание</div>
                   <div class="tg-text font-medium">
-                    {{
-                      endAt?.toLocaleTimeString('ru-RU', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })
-                    }}
+                    {{ endAt?.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) }}
                   </div>
                 </div>
               </div>
             </div>
 
-            <div class="mt-3 rounded-lg border tg-border p-3 tg-secondary-bg tg-text">
-              Ваш запрос будет отправлен администратору. После одобрения вы получите уведомление
+            <!-- Контактная форма (необязательно) -->
+            <div class="mt-3 rounded-lg border tg-border p-3 tg-secondary-bg">
+              <div class="text-sm tg-hint mb-2">Контактные данные (необязательно)</div>
+              <div class="flex flex-col gap-3">
+                <div>
+                  <label class="block text-sm tg-hint mb-1">Телефон</label>
+                  <input
+                    type="tel"
+                    v-model="contactPhone"
+                    inputmode="tel"
+                    autocomplete="tel"
+                    placeholder="+7 999 123-45-67"
+                    class="w-full px-3 py-2 rounded-lg border tg-border tg-bg tg-text"
+                  />
+                </div>
+                <div>
+                  <label class="block text-sm tg-hint mb-1">Комментарий для ответственного</label>
+                  <textarea
+                    v-model="comment"
+                    rows="3"
+                    maxlength="600"
+                    placeholder="Кратко опишите мероприятие или пожелания"
+                    class="w-full px-3 py-2 rounded-lg border tg-border tg-bg tg-text"
+                  />
+                  <div class="text-xs tg-hint mt-1">{{ comment.length }}/600</div>
+                </div>
+              </div>
             </div>
 
-            <div v-if="error" class="mt-3 text-sm text-red-600">{{ error }}</div>
+            <div class="mt-3 rounded-lg border tg-border p-3 tg-secondary-bg tg-text">
+              Ваш запрос будет отправлен администратору. После одобрения вы получите уведомление.
+            </div>
+
+            <div v-if="error" class="mt-3 text-sm" style="color:#ef4444">{{ error }}</div>
           </div>
         </div>
       </div>
@@ -337,10 +362,8 @@ async function confirm() {
       >
         {{ loading ? 'Отправка...' : 'Подтвердить' }}
       </button>
-      <button
-        class="w-full py-2 border tg-border font-semibold tg-btn-invert rounded-lg disabled:opacity-50"
-        @click="back"
-      >
+      <button class="w-full py-2 border tg-border font-semibold tg-btn-invert rounded-lg disabled:opacity-50"
+              @click="back">
         Назад
       </button>
     </div>
