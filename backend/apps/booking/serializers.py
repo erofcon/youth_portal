@@ -3,7 +3,7 @@ from django.utils.timezone import make_aware
 from django.utils import timezone
 from django.contrib.postgres.fields.ranges import DateTimeTZRange
 
-from .models import RoomTag, Room, Booking
+from .models import RoomTag, Room, Booking, Status
 from apps.centers.serializers import YouthCenterSerializer
 from apps.notifications.tasks import notify_responsible_of_new_booking
 
@@ -58,10 +58,27 @@ class BookingSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         start = attrs.get("start_datetime")
         end = attrs.get("end_datetime")
-        if not start or not end:
-            raise serializers.ValidationError("Укажите start_datetime и end_datetime.")
+        room = attrs.get("room")
+
+        if not start or not end or not room:
+            raise serializers.ValidationError("Укажите room_id, start_datetime и end_datetime.")
+
         if end <= start:
             raise serializers.ValidationError("Время окончания должно быть позже времени начала.")
+
+        # Приводим к aware датам
+        s = start if timezone.is_aware(start) else make_aware(start)
+        e = end if timezone.is_aware(end) else make_aware(end)
+
+        # Нельзя бронировать, если уже есть APPROVED пересечение
+        conflict_exists = Booking.objects.filter(
+            room=room,
+            status=Status.APPROVED,
+            time_slot__overlap=(s, e),
+        ).exists()
+        if conflict_exists:
+            raise serializers.ValidationError("Этот интервал уже занят одобренной бронью.")
+
         return attrs
 
     def create(self, validated_data):

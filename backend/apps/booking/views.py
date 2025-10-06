@@ -10,6 +10,8 @@ from rest_framework.permissions import IsAuthenticated
 from django.db.models import Q
 
 
+
+
 class RoomTagViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
     queryset = RoomTag.objects.all()
     serializer_class = RoomTagSerializer

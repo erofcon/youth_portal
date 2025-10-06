@@ -114,6 +114,18 @@ class Booking(models.Model):
             ),
         ]
 
+    def approve(self):
+        # Доп. проверка на пересечение перед утверждением
+        if Booking.objects.filter(
+                room=self.room,
+                status=Status.APPROVED,
+                time_slot__overlap=(self.start_at, self.end_at)
+        ).exclude(pk=self.pk).exists():
+            raise ValidationError("Невозможно одобрить: пересечение с другой одобренной бронью.")
+        self.status = Status.APPROVED
+        self.full_clean()
+        self.save(update_fields=["status", "updated_at"])
+
     def __str__(self):
         return f"{self.room} | {self.status} | {self.start_at} - {self.end_at}"
 
