@@ -1,8 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import apiClient from '@/api'
-import type { AvailabilityResponse, BookingPayload, Room, Paginated } from '@/types'
-
+import type { AvailabilityResponse, BookingPayload, Room, Paginated, Booking } from '@/types'
 
 function formatDateLocalYYYYMMDD(date: Date): string {
   const y = date.getFullYear()
@@ -11,10 +10,10 @@ function formatDateLocalYYYYMMDD(date: Date): string {
   return `${y}-${m}-${d}`
 }
 
-
 export const useBookingStore = defineStore('booking', () => {
   const rooms = ref<Room[]>([])
   const isLoading = ref(false)
+  const myBookings = ref<Booking[]>([])
   const error = ref<string | null>(null)
 
   async function fetchRooms() {
@@ -38,16 +37,31 @@ export const useBookingStore = defineStore('booking', () => {
   async function createBooking(payload: BookingPayload) {
     return await apiClient('/bookings/', {
       method: 'POST',
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
     })
+  }
+
+  async function fetchMyBookings() {
+    isLoading.value = true
+    error.value = null
+    try {
+      const result = await apiClient<Paginated<Booking>>('/bookings/my/')
+      myBookings.value = result.results
+    } catch (e: any) {
+      error.value = e.message || 'Не удалось загрузить ваши бронирования.'
+    } finally {
+      isLoading.value = false
+    }
   }
 
   return {
     rooms,
+    myBookings,
     isLoading,
     error,
     fetchRooms,
     fetchAvailability,
-    createBooking
+    fetchMyBookings,
+    createBooking,
   }
 })

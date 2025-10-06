@@ -255,9 +255,15 @@ async function confirm() {
       <div class="absolute inset-0 flex transition-transform duration-200"
            :style="{ transform: `translateX(-${step * 100}%)` }">
         <!-- Step 1 -->
+        <!-- В секции template BookingFlow.vue, шаг 1 -->
         <div class="min-w-full overflow-y-auto">
-          <!-- Важно: передаём актуальные busy -->
-          <DateStep v-model="chosenDate" :min-date="now()" :busy="internalBusy" />
+          <DateStep
+              v-model="chosenDate"
+              :min-date="now()"
+              :busy="internalBusy"
+              :working-hours="workingHours"
+              :min-duration-min="minDurationMin"
+          />
         </div>
 
         <!-- Step 2 -->

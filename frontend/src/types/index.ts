@@ -53,3 +53,14 @@ export interface BookingPayload {
   applicant_phone?: string
   applicant_telegram_username?: string
 }
+
+export interface Booking {
+  id: number
+  room: Room
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELED'
+  start_at: string // ISO date string
+  end_at: string // ISO date string
+  rejection_reason: string | null
+  comment: string
+  created_at: string
+}
