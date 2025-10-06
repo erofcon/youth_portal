@@ -3,6 +3,15 @@ import { ref } from 'vue'
 import apiClient from '@/api'
 import type { AvailabilityResponse, BookingPayload, Room, Paginated } from '@/types'
 
+
+function formatDateLocalYYYYMMDD(date: Date): string {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+
 export const useBookingStore = defineStore('booking', () => {
   const rooms = ref<Room[]>([])
   const isLoading = ref(false)
@@ -22,12 +31,11 @@ export const useBookingStore = defineStore('booking', () => {
   }
 
   async function fetchAvailability(roomId: number, date: Date): Promise<AvailabilityResponse> {
-    const dateStr = date.toISOString().split('T')[0]
+    const dateStr = formatDateLocalYYYYMMDD(date)
     return await apiClient<AvailabilityResponse>(`/rooms/${roomId}/availability/?date=${dateStr}`)
   }
 
   async function createBooking(payload: BookingPayload) {
-    // ВАЖНО: используем реальные даты из payload, ничего не перетираем
     return await apiClient('/bookings/', {
       method: 'POST',
       body: JSON.stringify(payload)
